@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\Package;
+use App\SYPanel\Ngnix\Server;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
 use App\Http\Controllers\Controller;
+use Piwik\Ini\IniWriter;
 
 class AccountsController extends Controller
 {
@@ -44,7 +46,7 @@ class AccountsController extends Controller
 	{
 
 
-		$account = Account::create($request->all());
+		$account           = Account::create($request->all());
 		$account->password = bcrypt($request->password);
 		if(!empty($request->input('package_id')))
 		{
@@ -52,6 +54,43 @@ class AccountsController extends Controller
 		}
 		$account->save();
 
+		/** Create user */
+		$password = sy_exec('mkpasswd -m sha-512 ' . $request->password);
+		sy_exec('useradd -d /home/' . $request->username . ' -m -s /bin/bash -p ' . $request->password . ' ' . $request->username);
+		/** Create php-fpm pool*/
+		$pool[$request->username] = [
+			'user'         => $request->username,
+			'group'        => $request->username,
+			'listen'       => '127.0.0.1:' . (9010 + $account->id),
+			'listen.owner' => $request->username,
+			'listen.group' => $request->username,
+		];
+
+		$ini  = new IniWriter();
+		$file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . rand(1, 999999) . time();
+		file_put_contents($file, (string)$ini->writeToString($pool));
+		sy_exec("mv {$file} /etc/php5/fpm/pool.d/{$request->username}.conf");
+		sy_exec('service php5-fpm reload');
+
+		/** Create nginx config*/
+		$nginx                                                 = new Server();
+		$nginx->listen                                         = '80';
+		$nginx->access_log                                     = '/home/'.$request->username.'/log/nginx_access.log';
+		$nginx->error_log                                      = '/home/'.$request->username.'/log/nginx_error.log';
+		$nginx->root                                           = '/home/'.$request->username.'/public_html';
+		$nginx->index                                          = 'index.php index.html index.htm';
+		$nginx->server_name                                    = $request->domain;
+		//$nginx->locations['/']->try_files                      = '';
+		$nginx->locations['~ \.php$']->try_files               = '$uri /index.php =404';
+		$nginx->locations['~ \.php$']->fastcgi_split_path_info = '^(.+\.php)(/.+)$';
+		$nginx->locations['~ \.php$']->fastcgi_pass            = '127.0.0.1:'.(9010 + $account->id);
+		$nginx->locations['~ \.php$']->fastcgi_index           = 'index.php';
+		$nginx->locations['~ \.php$']->fastcgi_param           = 'SCRIPT_FILENAME $document_root$fastcgi_script_name';
+		$nginx->locations['~ \.php$']->include                 = 'fastcgi_params';
+		$nginx->toFile('/etc/nginx/conf.d/'.$request->username.'.conf');
+		sy_exec('service nginx reload');
+
+		return redirect(action('AccountsController@index'));
 	}
 
 	/**

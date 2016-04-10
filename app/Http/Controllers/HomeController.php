@@ -15,7 +15,8 @@ class HomeController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
-    {/*
+    {
+        /*
         $server = Server::fileOrContent('/etc/nginx/conf.d/sypanel.conf')[0];
 
         $server->toFile('/etc/nginx/conf.d/new_fish.conf');*/

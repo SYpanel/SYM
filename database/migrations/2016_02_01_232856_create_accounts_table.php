@@ -15,6 +15,7 @@ class CreateAccountsTable extends Migration
         Schema::create('accounts', function (Blueprint $table) {
             $table->engine = 'InnoDB';
             $table->increments('id');
+            $table->string('domain')->unique();
             $table->string('username')->unique();
             $table->string('email');
             $table->string('password', 60);
