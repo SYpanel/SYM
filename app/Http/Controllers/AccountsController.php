@@ -17,8 +17,6 @@ class AccountsController extends Controller
 	 */
 	public function index()
 	{
-		echo sy_exec('nginx -t');
-		die();
 		$accounts = Account::all();
 
 		return view('account.index', compact('accounts'));
