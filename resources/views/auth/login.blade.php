@@ -240,7 +240,6 @@ include the remember me checkbox
 -->
 <div class="container">
     <div class="card card-container">
-        {{$_SERVER['REQUEST_URI']}}
         <p id="profile-name" class="profile-name-card"></p>
         <form class="form-signin" role="form" method="POST" action="{{ url('/login') }}">
             {!! csrf_field() !!}
