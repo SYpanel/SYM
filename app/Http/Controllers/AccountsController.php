@@ -45,7 +45,6 @@ class AccountsController extends Controller
 	public function store(Request $request)
 	{
 
-
 		$account           = Account::create($request->all());
 		$account->password = bcrypt($request->password);
 		if(!empty($request->input('package_id')))
@@ -56,7 +55,7 @@ class AccountsController extends Controller
 
 		/** Create user */
 		$password = sy_exec('mkpasswd -m sha-512 ' . $request->password);
-		sy_exec('useradd -d /home/' . $request->username . ' -m -s /bin/bash -p ' . $password . ' ' . $request->username);
+		sy_exec('useradd -d /home/' . $request->username . ' -m -s /bin/bash -p \'' . $password . '\' ' . $request->username);
 		/** Create php-fpm pool*/
 		$pool[$request->username] = [
 			'user'                 => $request->username,
@@ -93,10 +92,10 @@ class AccountsController extends Controller
 		$nginx->locations['~ \.php$']->include                 = 'fastcgi_params';
 		$nginx->toFile('/etc/nginx/conf.d/' . $request->username . '.conf');
 
-		sy_exec('service nginx reload');
-		sy_exec('service php5-fpm reload');
+		sy_exec('sleep 2;service nginx reload',true,false);
+		sy_exec('sleep 2;service php5-fpm reload',true,false);
 
-		//return redirect(action('AccountsController@index'));
+		return redirect(action('AccountsController@index'));
 	}
 
 	/**
